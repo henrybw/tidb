@@ -1253,29 +1253,31 @@ func (n *SelectStmt) Restore(ctx *format.RestoreCtx) error {
 	ctx.WritePlain(" ")
 	switch n.Kind {
 	case SelectStmtKindSelect:
-		if n.SelectStmtOpts.Priority > 0 {
-			ctx.WriteKeyWord(mysql.Priority2Str[n.SelectStmtOpts.Priority])
-			ctx.WritePlain(" ")
-		}
+		if n.SelectStmtOpts != nil {
+			if n.SelectStmtOpts.Priority > 0 {
+				ctx.WriteKeyWord(mysql.Priority2Str[n.SelectStmtOpts.Priority])
+				ctx.WritePlain(" ")
+			}
 
-		if n.SelectStmtOpts.SQLSmallResult {
-			ctx.WriteKeyWord("SQL_SMALL_RESULT ")
-		}
+			if n.SelectStmtOpts.SQLSmallResult {
+				ctx.WriteKeyWord("SQL_SMALL_RESULT ")
+			}
 
-		if n.SelectStmtOpts.SQLBigResult {
-			ctx.WriteKeyWord("SQL_BIG_RESULT ")
-		}
+			if n.SelectStmtOpts.SQLBigResult {
+				ctx.WriteKeyWord("SQL_BIG_RESULT ")
+			}
 
-		if n.SelectStmtOpts.SQLBufferResult {
-			ctx.WriteKeyWord("SQL_BUFFER_RESULT ")
-		}
+			if n.SelectStmtOpts.SQLBufferResult {
+				ctx.WriteKeyWord("SQL_BUFFER_RESULT ")
+			}
 
-		if !n.SelectStmtOpts.SQLCache {
-			ctx.WriteKeyWord("SQL_NO_CACHE ")
-		}
+			if !n.SelectStmtOpts.SQLCache {
+				ctx.WriteKeyWord("SQL_NO_CACHE ")
+			}
 
-		if n.SelectStmtOpts.CalcFoundRows {
-			ctx.WriteKeyWord("SQL_CALC_FOUND_ROWS ")
+			if n.SelectStmtOpts.CalcFoundRows {
+				ctx.WriteKeyWord("SQL_CALC_FOUND_ROWS ")
+			}
 		}
 
 		if len(n.TableHints) != 0 {
@@ -1293,11 +1295,13 @@ func (n *SelectStmt) Restore(ctx *format.RestoreCtx) error {
 
 		if n.Distinct {
 			ctx.WriteKeyWord("DISTINCT ")
-		} else if n.SelectStmtOpts.ExplicitAll {
-			ctx.WriteKeyWord("ALL ")
-		}
-		if n.SelectStmtOpts.StraightJoin {
-			ctx.WriteKeyWord("STRAIGHT_JOIN ")
+		} else if n.SelectStmtOpts != nil {
+			if n.SelectStmtOpts.ExplicitAll {
+				ctx.WriteKeyWord("ALL ")
+			}
+			if n.SelectStmtOpts.StraightJoin {
+				ctx.WriteKeyWord("STRAIGHT_JOIN ")
+			}
 		}
 		if n.Fields != nil {
 			for i, field := range n.Fields.Fields {
