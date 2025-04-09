@@ -898,7 +898,7 @@ Projection	8000.00	root		Column#2, Column#4, Column#5, Column#6, Column#7, Colum
   └─MemTableScan	10000.00	root	table:PROCESSLIST	
 select USER, DB, COMMAND, TIME, STATE, INFO, `DIGEST` from information_schema.processlist where DB = "planner__cascades__integration";
 USER	DB	COMMAND	TIME	STATE	INFO	DIGEST
-root	planner__cascades__integration	Query	0	autocommit	select USER, DB, COMMAND, TIME, STATE, INFO, `DIGEST` from information_schema.processlist where DB = "planner__cascades__integration"	769773ab56dd2977858c3c36e76e503323bbbc62257bb2e18e0e10cd9df43973
+root	planner__cascades__integration	Query	0	autocommit	select USER, DB, COMMAND, TIME, STATE, INFO, `DIGEST` from information_schema.processlist where DB = "planner__cascades__integration"	96706f907245c15047583cfd378bb9d2a7753b105b32384da04c78056defbdea
 drop table if exists t;
 create table t(a int primary key, b int);
 insert into t values (1, 11), (4, 44), (2, 22), (3, 33);
