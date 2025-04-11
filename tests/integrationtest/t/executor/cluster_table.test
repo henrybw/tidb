@@ -39,11 +39,11 @@ select @@tidb_current_ts;
 --enable_result_log
 select id, v from test_func_decode_sql_digests where id = 1 for update;
 rollback;
-select tidb_decode_sql_digests('["e6f07d43b5c21db0fbb9a31feac2dc599787763393dd5acbfad80e247eb02ad5","58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44","7e9f826ed22a09940940a42d1aca47a75b3adc3c3fde252f4b912ac886194eb9"]', 0);
-select tidb_decode_sql_digests('["e6f07d43b5c21db0fbb9a31feac2dc599787763393dd5acbfad80e247eb02ad5","58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44","7e9f826ed22a09940940a42d1aca47a75b3adc3c3fde252f4b912ac886194eb9"]', 24);
+select tidb_decode_sql_digests('["9a4170a059f3113e196bdac9c156d6cecf3ccbef8eb238b878d04e61aa7d9741","58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44","34d911115dda17c516d1b44e2091de78588820431e3e56b8b19dfa2d5806b0af"]', 0);
+select tidb_decode_sql_digests('["9a4170a059f3113e196bdac9c156d6cecf3ccbef8eb238b878d04e61aa7d9741","58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44","34d911115dda17c516d1b44e2091de78588820431e3e56b8b19dfa2d5806b0af"]', 24);
 select tidb_decode_sql_digests('[]');
 select tidb_decode_sql_digests(null);
-select tidb_decode_sql_digests('["e6f07d43b5c21db0fbb9a31feac2dc599787763393dd5acbfad80e247eb02ad5",1,null,"58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44",{"a":1},[2],"7e9f826ed22a09940940a42d1aca47a75b3adc3c3fde252f4b912ac886194eb9","","abcde"]');
+select tidb_decode_sql_digests('["9a4170a059f3113e196bdac9c156d6cecf3ccbef8eb238b878d04e61aa7d9741",1,null,"58f3717da2d79c14773a1e3094aaddeff2b11747d3aef95741151af9acba9d44",{"a":1},[2],"34d911115dda17c516d1b44e2091de78588820431e3e56b8b19dfa2d5806b0af","","abcde"]');
 select tidb_decode_sql_digests('{"a":1}');
 show warnings;
 select tidb_decode_sql_digests('aabbccdd');
