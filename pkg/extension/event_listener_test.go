@@ -191,14 +191,14 @@ func TestExtensionStmtEvents(t *testing.T) {
 		},
 		{
 			sql:        "select a, b from t1 where a > 1 and b < 2",
-			redactText: "select `a` , `b` from `t1` where `a` > ? and `b` < ?",
+			redactText: "select `a` , `b` from `test` . `t1` where `a` > ? and `b` < ?",
 			tables: []stmtctx.TableEntry{
 				{DB: "test", Table: "t1"},
 			},
 		},
 		{
 			sql:          "insert into t2 values(1)",
-			redactText:   "insert into `t2` values ( ? )",
+			redactText:   "insert into `test` . `t2` values ( ? )",
 			affectedRows: 1,
 			tables: []stmtctx.TableEntry{
 				{DB: "test", Table: "t2"},
@@ -269,7 +269,7 @@ func TestExtensionStmtEvents(t *testing.T) {
 		},
 		{
 			sql:          "insert into t1 values(1, 10), (2, 20)",
-			redactText:   "insert into `t1` values ( ... )",
+			redactText:   "insert into `test` . `t1` values ( ... )",
 			affectedRows: 2,
 			tables: []stmtctx.TableEntry{
 				{DB: "test", Table: "t1"},
@@ -277,7 +277,7 @@ func TestExtensionStmtEvents(t *testing.T) {
 		},
 		{
 			sql:          "insert into t2 values(1)",
-			redactText:   "insert into `t2` values ( ? )",
+			redactText:   "insert into `test` . `t2` values ( ? )",
 			affectedRows: 0,
 			err:          "[kv:1062]Duplicate entry '1' for key 't2.PRIMARY'",
 			tables: []stmtctx.TableEntry{
@@ -293,7 +293,7 @@ func TestExtensionStmtEvents(t *testing.T) {
 				},
 				{
 					originalText: "select * from t1 where a > 1",
-					redactText:   "select * from `t1` where `a` > ?",
+					redactText:   "select * from `test` . `t1` where `a` > ?",
 					tables: []stmtctx.TableEntry{
 						{DB: "test", Table: "t1"},
 					},
@@ -347,7 +347,7 @@ func TestExtensionStmtEvents(t *testing.T) {
 		},
 		{
 			sql:          "set @@tidb_session_alias='alias123'",
-			redactText:   "set @@tidb_session_alias = ?",
+			redactText:   "set @@session.tidb_session_alias = ?",
 			sessionAlias: "alias123",
 		},
 		{
@@ -357,7 +357,7 @@ func TestExtensionStmtEvents(t *testing.T) {
 		},
 		{
 			sql:          "set @@tidb_session_alias=''",
-			redactText:   "set @@tidb_session_alias = ?",
+			redactText:   "set @@session.tidb_session_alias = ?",
 			sessionAlias: "",
 		},
 		{
