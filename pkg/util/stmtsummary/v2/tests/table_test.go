@@ -332,11 +332,11 @@ func TestStmtSummaryErrorCount(t *testing.T) {
 	_, err := tk.Exec("insert into stmt_summary_test values(1)")
 	require.Error(t, err)
 
-	sql := "select exec_count, sum_errors, sum_warnings from information_schema.statements_summary where digest_text like \"insert into `stmt_summary_test`%\""
+	sql := "select exec_count, sum_errors, sum_warnings from information_schema.statements_summary where digest_text like \"insert into `test` . `stmt_summary_test`%\""
 	tk.MustQuery(sql).Check(testkit.Rows("2 1 0"))
 
 	tk.MustExec("insert ignore into stmt_summary_test values(1)")
-	sql = "select exec_count, sum_errors, sum_warnings from information_schema.statements_summary where digest_text like \"insert ignore into `stmt_summary_test`%\""
+	sql = "select exec_count, sum_errors, sum_warnings from information_schema.statements_summary where digest_text like \"insert ignore into `test` . `stmt_summary_test`%\""
 	tk.MustQuery(sql).Check(testkit.Rows("1 0 1"))
 }
 
