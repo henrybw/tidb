@@ -956,9 +956,9 @@ func TestStmtSummaryTablePrivilege(t *testing.T) {
 	defer tk.MustExec("drop user if exists 'test_user'@'localhost'")
 	tk.MustExec("grant select on test.t to 'test_user'@'localhost'")
 	tk.MustExec("select * from t where a=1")
-	result := tk.MustQuery("select * from information_schema.statements_summary where digest_text like 'select * from `t`%'")
+	result := tk.MustQuery("select * from information_schema.statements_summary where digest_text like 'select * from `test` . `t`%'")
 	require.Equal(t, 1, len(result.Rows()))
-	result = tk.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `t`%'")
+	result = tk.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `test` . `t`%'")
 	require.Equal(t, 1, len(result.Rows()))
 
 	tk1 := testkit.NewTestKit(t, store)
@@ -970,23 +970,23 @@ func TestStmtSummaryTablePrivilege(t *testing.T) {
 		AuthHostname: "localhost",
 	}, nil, nil, nil)
 
-	result = tk1.MustQuery("select * from information_schema.statements_summary where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select * from information_schema.statements_summary where digest_text like 'select * from `test` . `t`%'")
 	// Ordinary users can not see others' records
 	require.Equal(t, 0, len(result.Rows()))
-	result = tk1.MustQuery("select *	from information_schema.statements_summary_history where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select *	from information_schema.statements_summary_history where digest_text like 'select * from `test` . `t`%'")
 	require.Equal(t, 0, len(result.Rows()))
 	tk1.MustExec("select * from t where b=1")
-	result = tk1.MustQuery("select *	from information_schema.statements_summary	where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select *	from information_schema.statements_summary	where digest_text like 'select * from `test` . `t`%'")
 	// Ordinary users can see his own records
 	require.Equal(t, 1, len(result.Rows()))
-	result = tk1.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `test` . `t`%'")
 	require.Equal(t, 1, len(result.Rows()))
 
 	tk.MustExec("grant process on *.* to 'test_user'@'localhost'")
-	result = tk1.MustQuery("select *	from information_schema.statements_summary	where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select *	from information_schema.statements_summary	where digest_text like 'select * from `test` . `t`%'")
 	// Users with 'PROCESS' privileges can query all records.
 	require.Equal(t, 2, len(result.Rows()))
-	result = tk1.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `t`%'")
+	result = tk1.MustQuery("select *	from information_schema.statements_summary_history	where digest_text like 'select * from `test` . `t`%'")
 	require.Equal(t, 2, len(result.Rows()))
 }
 
