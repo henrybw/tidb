@@ -1376,7 +1376,7 @@ func TestMemoryUsageAndOpsHistory(t *testing.T) {
 	require.Equal(t, row[7], "")                                                                                                 // CLIENT
 	require.Equal(t, row[8], "test")                                                                                             // DB
 	require.Equal(t, row[9], "")                                                                                                 // USER
-	require.Equal(t, row[10], "e3237ec256015a3566757e0c2742507cd30ae04e4cac2fbc14d269eafe7b067b")                                // SQL_DIGEST
+	require.Equal(t, row[10], "1e0b702cfbda147c8da56c881123a9eb39993a409cdea65fde2e368f2e92edf0")                                // SQL_DIGEST
 	require.Equal(t, row[11], "explain analyze select * from t t1 join t t2 join t t3 on t1.a=t2.a and t1.a=t3.a order by t1.a") // SQL_TEXT
 }
 
