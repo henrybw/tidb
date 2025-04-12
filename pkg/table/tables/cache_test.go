@@ -397,7 +397,7 @@ func TestCacheTableWriteOperatorWaitLockLease(t *testing.T) {
 	tk.MustExec("insert into wait_tb1 values(1)")
 	require.True(t, se.GetSessionVars().StmtCtx.WaitLockLeaseTime > 0)
 
-	tk.MustQuery("select DIGEST_TEXT from INFORMATION_SCHEMA.STATEMENTS_SUMMARY where MAX_BACKOFF_TIME > 0 or MAX_WAIT_TIME > 0").Check(testkit.Rows("insert into `wait_tb1` values ( ? )"))
+	tk.MustQuery("select DIGEST_TEXT from INFORMATION_SCHEMA.STATEMENTS_SUMMARY where MAX_BACKOFF_TIME > 0 or MAX_WAIT_TIME > 0").Check(testkit.Rows("insert into `test` . `wait_tb1` values ( ? )"))
 }
 
 func TestTableCacheLeaseVariable(t *testing.T) {
