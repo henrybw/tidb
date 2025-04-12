@@ -529,7 +529,7 @@ func TestStmtSummaryHistoryTable(t *testing.T) {
 		"max_total_keys, avg_processed_keys, max_processed_keys, avg_write_keys, max_write_keys, avg_prewrite_regions," +
 		"max_prewrite_regions, avg_affected_rows, query_sample_text " +
 		"from information_schema.statements_summary_history " +
-		"where digest_text like 'insert into `test_summary`%'"
+		"where digest_text like 'insert into `test` . `test_summary`%'"
 	tk.MustQuery(sql).Check(testkit.Rows("Insert test test.test_summary <nil> 4 0 0 0 0 0 2 2 1 1 1 insert into test_summary values(1, 'a')"))
 
 	tk.MustExec("set global tidb_stmt_summary_history_size = 0")
@@ -548,9 +548,9 @@ func TestStmtSummaryHistoryTable(t *testing.T) {
 
 	sql = "select digest_text from information_schema.statements_summary_history;"
 	tk.MustQuery(sql).Check(testkit.Rows(
-		"select `insert` from `table`",
-		"create table `table` ( `insert` int )",
-		"set global `tidb_enable_stmt_summary` = ?",
+		"select `insert` from `test` . `table`",
+		"create table `test` . `table` ( `insert` int )",
+		"set @@global.tidb_enable_stmt_summary = ?",
 	))
 }
 
