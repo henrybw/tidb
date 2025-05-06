@@ -28,6 +28,7 @@ import (
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/kvproto/pkg/kvrpcpb"
+	"github.com/pingcap/tidb/pkg/bindinfo"
 	"github.com/pingcap/tidb/pkg/expression/expropt"
 	infoschema "github.com/pingcap/tidb/pkg/infoschema/context"
 	"github.com/pingcap/tidb/pkg/parser"
@@ -1413,6 +1414,71 @@ func (b *builtinTiDBEncodeSQLDigestSig) evalString(ctx EvalContext, row chunk.Ro
 		return "", true, nil
 	}
 	return parser.DigestHash(orgSQLStr).String(), false, nil
+}
+
+type tidbEncodeSQLDigestForBindingFunctionClass struct {
+	baseFunctionClass
+}
+
+func (c *tidbEncodeSQLDigestForBindingFunctionClass) getFunction(ctx BuildContext, args []Expression) (builtinFunc, error) {
+	if err := c.verifyArgs(args); err != nil {
+		return nil, err
+	}
+
+	var argTps []types.EvalType
+	if len(args) > 1 {
+		argTps = []types.EvalType{types.ETString, types.ETString}
+	} else {
+		argTps = []types.EvalType{types.ETString}
+	}
+	bf, err := newBaseBuiltinFuncWithTp(ctx, c.funcName, args, types.ETString, argTps...)
+	if err != nil {
+		return nil, err
+	}
+	sig := &builtinTiDBEncodeSQLDigestForBindingSig{bf}
+	return sig, nil
+}
+
+type builtinTiDBEncodeSQLDigestForBindingSig struct {
+	baseBuiltinFunc
+	// NOTE: Any new fields added here must be thread-safe or immutable during execution,
+	// as this expression may be shared across sessions.
+	// If a field does not meet these requirements, set SafeToShareAcrossSession to false.
+}
+
+func (b *builtinTiDBEncodeSQLDigestForBindingSig) Clone() builtinFunc {
+	newSig := &builtinTiDBEncodeSQLDigestForBindingSig{}
+	newSig.cloneFrom(&b.baseBuiltinFunc)
+	return newSig
+}
+
+func (b *builtinTiDBEncodeSQLDigestForBindingSig) evalString(ctx EvalContext, row chunk.Row) (string, bool, error) {
+	args := b.getArgs()
+	origSQL, isNull, err := args[0].EvalString(ctx, row)
+	if err != nil || isNull {
+		return "", true, err
+	}
+
+	specifiedDB := ""
+	noDB := true
+	if len(args) > 1 {
+		specifiedDB, isNull, err = args[1].EvalString(ctx, row)
+		if err != nil {
+			return "", true, err
+		}
+		if !isNull && specifiedDB != "" {
+			noDB = false
+		}
+	}
+
+	p := parser.New()
+	stmtNode, err := p.ParseOneStmt(origSQL, b.charset, b.collation)
+	if err != nil {
+		return "", true, err
+	}
+
+	_, sqlDigest := bindinfo.NormalizeStmtForBinding(stmtNode, specifiedDB, noDB)
+	return sqlDigest, false, nil
 }
 
 type tidbDecodePlanFunctionClass struct {
