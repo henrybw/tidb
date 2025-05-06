@@ -267,6 +267,7 @@ const (
 	TiDBDecodeSQLDigests          = "tidb_decode_sql_digests"
 	TiDBEncodeSQLDigest           = "tidb_encode_sql_digest"
 	TiDBEncodeSQLDigestForBinding = "tidb_encode_sql_digest_for_binding"
+	TiDBNormalizeSQLForBinding    = "tidb_normalize_sql_for_binding"
 	FormatBytes                   = "format_bytes"
 	FormatNanoTime                = "format_nano_time"
 	CurrentResourceGroup          = "current_resource_group"

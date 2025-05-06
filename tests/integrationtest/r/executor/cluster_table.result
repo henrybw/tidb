@@ -51,6 +51,35 @@ select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql
 select (select tidb_encode_sql_digest_for_binding('select * from t', 'test')) = tidb_encode_sql_digest_for_binding('select * from test.t', 'test');
 (select tidb_encode_sql_digest_for_binding('select * from t', 'test')) = tidb_encode_sql_digest_for_binding('select * from test.t', 'test')
 1
+select tidb_normalize_sql_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update");
+tidb_normalize_sql_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update")
+select `id` , `v` from `test_func_encode_sql_digest_for_binding` where `id` = ? for update
+select tidb_normalize_sql_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update", "test");
+tidb_normalize_sql_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update", "test")
+select `id` , `v` from `test` . `test_func_encode_sql_digest_for_binding` where `id` = ? for update
+select tidb_normalize_sql_for_binding("select id, v from test.test_func_encode_sql_digest_for_binding where id = 1 for update", "test");
+tidb_normalize_sql_for_binding("select id, v from test.test_func_encode_sql_digest_for_binding where id = 1 for update", "test")
+select `id` , `v` from `test` . `test_func_encode_sql_digest_for_binding` where `id` = ? for update
+select tidb_normalize_sql_for_binding(null);
+tidb_normalize_sql_for_binding(null)
+NULL
+select tidb_normalize_sql_for_binding(null, null);
+tidb_normalize_sql_for_binding(null, null)
+NULL
+select tidb_normalize_sql_for_binding();
+Error 1582 (42000): Incorrect parameter count in the call to native function 'tidb_normalize_sql_for_binding'
+select (select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 1;');
+(select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 1;')
+1
+select (select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 1 ;');
+(select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 1 ;')
+1
+select (select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 2 ;');
+(select tidb_normalize_sql_for_binding('select 1')) = tidb_normalize_sql_for_binding('select 2 ;')
+1
+select (select tidb_normalize_sql_for_binding('select * from t', 'test')) = tidb_normalize_sql_for_binding('select * from test.t', 'test');
+(select tidb_normalize_sql_for_binding('select * from t', 'test')) = tidb_normalize_sql_for_binding('select * from test.t', 'test')
+1
 drop user if exists 'testuser'@'localhost';
 create user 'testuser'@'localhost';
 select tidb_decode_sql_digests('["aa"]');
