@@ -812,6 +812,34 @@ const (
 		value json NOT NULL,
 		index idx_version_category_type (version, category, type),
 		index idx_table_id (table_id));`
+
+	// CreateStatmentsStatsByBindingDigestView creates a view that aggregates `information_schema.tidb_statements_stats`
+	// by normalizing SQL statements for bindings and grouping by the resulting digests.
+	// TODO(henrybw): Add testing
+	// TODO(henrybw): Do we need another view for the hist version of stmt stats?
+	/*
+		WITH stats AS (
+			SELECT * FROM information_schema.cluster_tidb_statements_stats
+			UNION ALL
+			-- TODO(henrybw): What if workload repo is not enabled? How do we conditionally exclude this then?
+			SELECT * FROM workload_schema.tidb_statements_stats_hist
+		),
+	*/
+	CreateStatementsStatsByBindingDigestView = `CREATE OR REPLACE VIEW sys.statements_stats_by_binding_digest AS
+		SELECT
+			TIDB_ENCODE_SQL_DIGEST_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS sql_digest,
+			TIDB_NORMALIZE_SQL_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS original_sql,
+			stats.plan_digest AS plan_digest,
+			ANY_VALUE(stats.plan_hint) AS plan_hint,
+			ANY_VALUE(stats.plan) AS plan,
+			SUM(stats.result_rows) AS result_rows,
+			SUM(stats.exec_count) AS exec_count,
+			SUM(stats.processed_keys) AS processed_keys,
+			SUM(stats.total_time) AS total_time
+		FROM information_schema.cluster_tidb_statements_stats stats
+		GROUP BY sql_digest, original_sql, plan_digest
+		HAVING
+			sql_digest != "" AND original_sql != "" AND plan_digest != "";`
 )
 
 // CreateTimers is a table to store all timers for tidb
@@ -1313,11 +1341,15 @@ const (
 	// Update mysql.tidb_pitr_id_map to add restore_id as a primary key field
 	version248 = 248
 	version249 = 249
+
+	// version 250
+	// Create `sys.statements_stats_by_binding_digest` view
+	version250 = 250
 )
 
 // currentBootstrapVersion is defined as a variable, so we can modify its value for testing.
 // please make sure this is the largest version
-var currentBootstrapVersion int64 = version249
+var currentBootstrapVersion int64 = version250
 
 // DDL owner key's expired time is ManagerSessionTTL seconds, we should wait the time and give more time to have a chance to finish it.
 var internalSQLTimeout = owner.ManagerSessionTTL + 15
@@ -1502,6 +1534,7 @@ var (
 		upgradeToVer247,
 		upgradeToVer248,
 		upgradeToVer249,
+		upgradeToVer250,
 	}
 )
 
@@ -3499,6 +3532,13 @@ func upgradeToVer249(s sessiontypes.Session, ver int64) {
 	doReentrantDDL(s, CreateRestoreRegistryTable)
 }
 
+func upgradeToVer250(s sessiontypes.Session, ver int64) {
+	if ver >= version250 {
+		return
+	}
+	doReentrantDDL(s, CreateStatementsStatsByBindingDigestView)
+}
+
 // initGlobalVariableIfNotExists initialize a global variable with specific val if it does not exist.
 func initGlobalVariableIfNotExists(s sessiontypes.Session, name string, val any) {
 	ctx := kv.WithInternalSourceType(context.Background(), kv.InternalTxnBootstrap)
@@ -3657,6 +3697,8 @@ func doDDLWorks(s sessiontypes.Session) {
 	mustExecute(s, CreateKernelOptionsTable)
 	// create mysql.tidb_workload_values
 	mustExecute(s, CreateTiDBWorkloadValuesTable)
+	// create `sys.statements_stats_by_binding_digest` view
+	mustExecute(s, CreateStatementsStatsByBindingDigestView)
 }
 
 // doBootstrapSQLFile executes SQL commands in a file as the last stage of bootstrap.
