@@ -11,6 +11,20 @@ select (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('sel
 select (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('select 1 ;');
 select (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('select 2 ;');
 
+# TestFunctionEncodeSQLDigestForBinding
+drop table if exists test_func_encode_sql_digest_for_binding;
+create table test_func_encode_sql_digest_for_binding(id int primary key, v int);
+select tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update");
+select tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update", "test");
+select tidb_encode_sql_digest_for_binding(null);
+select tidb_encode_sql_digest_for_binding(null, null);
+-- error 1582
+select tidb_encode_sql_digest_for_binding();
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1;');
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1 ;');
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 2 ;');
+select (select tidb_encode_sql_digest_for_binding('select * from t', 'test')) = tidb_encode_sql_digest_for_binding('select * from test.t', 'test');
+
 # TestFunctionDecodeSQLDigestsPrivilege
 drop user if exists 'testuser'@'localhost';
 create user 'testuser'@'localhost';

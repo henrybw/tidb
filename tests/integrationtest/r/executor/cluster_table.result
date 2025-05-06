@@ -23,6 +23,34 @@ select (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('sel
 select (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('select 2 ;');
 (select tidb_encode_sql_digest('select 1')) = tidb_encode_sql_digest('select 2 ;')
 1
+drop table if exists test_func_encode_sql_digest_for_binding;
+create table test_func_encode_sql_digest_for_binding(id int primary key, v int);
+select tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update");
+tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update")
+0375520ca7325d182118c108bab8d330477762ef83df56f88dbe99dd711abe0a
+select tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update", "test");
+tidb_encode_sql_digest_for_binding("select id, v from test_func_encode_sql_digest_for_binding where id = 1 for update", "test")
+8a012990f3e9586b32f44d18d76d55bb554e88ae0182dad7610fe27385a8ac1e
+select tidb_encode_sql_digest_for_binding(null);
+tidb_encode_sql_digest_for_binding(null)
+NULL
+select tidb_encode_sql_digest_for_binding(null, null);
+tidb_encode_sql_digest_for_binding(null, null)
+NULL
+select tidb_encode_sql_digest_for_binding();
+Error 1582 (42000): Incorrect parameter count in the call to native function 'tidb_encode_sql_digest_for_binding'
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1;');
+(select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1;')
+1
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1 ;');
+(select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 1 ;')
+1
+select (select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 2 ;');
+(select tidb_encode_sql_digest_for_binding('select 1')) = tidb_encode_sql_digest_for_binding('select 2 ;')
+1
+select (select tidb_encode_sql_digest_for_binding('select * from t', 'test')) = tidb_encode_sql_digest_for_binding('select * from test.t', 'test');
+(select tidb_encode_sql_digest_for_binding('select * from t', 'test')) = tidb_encode_sql_digest_for_binding('select * from test.t', 'test')
+1
 drop user if exists 'testuser'@'localhost';
 create user 'testuser'@'localhost';
 select tidb_decode_sql_digests('["aa"]');
