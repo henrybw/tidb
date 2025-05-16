@@ -795,8 +795,8 @@ const (
 	// TODO(henrybw): Do we need another view for the hist version of stmt stats?
 	CreateStatementsStatsByBindingDigestView = `CREATE OR REPLACE VIEW sys.statements_stats_by_binding_digest AS
 		SELECT
-			TIDB_ENCODE_SQL_DIGEST_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS binding_digest,
-			TIDB_NORMALIZE_SQL_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS binding_digest_text,
+			TIDB_ENCODE_SQL_DIGEST_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS sql_digest,
+			TIDB_NORMALIZE_SQL_FOR_BINDING(stats.query_sample_text, stats.schema_name) AS original_sql,
 			stats.plan_digest AS plan_digest,
 			ANY_VALUE(stats.plan) AS plan,
 			SUM(stats.result_rows) AS result_rows,
@@ -804,9 +804,9 @@ const (
 			SUM(stats.processed_keys) AS processed_keys,
 			SUM(stats.total_time) AS total_time
 		FROM information_schema.cluster_tidb_statements_stats stats
-		GROUP BY binding_digest, binding_digest_text, plan_digest
+		GROUP BY sql_digest, original_sql, plan_digest
 		HAVING
-			binding_digest != "" AND binding_digest_text != "" AND plan_digest != "";`
+			sql_digest != "" AND original_sql != "" AND plan_digest != "";`
 )
 
 // CreateTimers is a table to store all timers for tidb
