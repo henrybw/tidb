@@ -199,24 +199,12 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 			}
 		}
 
-		pInfo, err := ba.getPlanExecInfo(planDigest)
+		execInfo, err := ba.getPlanExecInfo(planDigest)
 		if err != nil {
 			bindingLogger().Error("get plan execution info failed", zap.String("plan_digest", binding.PlanDigest), zap.Error(err))
 			continue
 		}
-		autoBinding := &BindingPlanInfo{Binding: binding}
-		if pInfo != nil && pInfo.ExecCount > 0 { // pInfo could be nil when stmt_stats' data is incomplete.
-			autoBinding.Plan = pInfo.Plan
-			autoBinding.ExecTimes = pInfo.ExecCount
-			autoBinding.AvgLatency = float64(pInfo.TotalTime) / float64(pInfo.ExecCount)
-			autoBinding.AvgScanRows = float64(pInfo.ProcessedKeys) / float64(pInfo.ExecCount)
-			autoBinding.AvgReturnedRows = float64(pInfo.ResultRows) / float64(pInfo.ExecCount)
-			if autoBinding.AvgReturnedRows > 0 {
-				autoBinding.LatencyPerReturnRow = autoBinding.AvgLatency / autoBinding.AvgReturnedRows
-				autoBinding.ScanRowsPerReturnRow = autoBinding.AvgScanRows / autoBinding.AvgReturnedRows
-			}
-		}
-		bindingPlans = append(bindingPlans, autoBinding)
+		bindingPlans = append(bindingPlans, newBindingPlanInfo(binding, execInfo))
 	}
 	return bindingPlans, nil
 }
@@ -287,6 +275,22 @@ type planExecInfo struct {
 	ExecCount     int64
 	ProcessedKeys int64
 	TotalTime     int64
+}
+
+func newBindingPlanInfo(binding *Binding, execInfo *planExecInfo) *BindingPlanInfo {
+	bindingPlanInfo := &BindingPlanInfo{Binding: binding}
+	if execInfo != nil && execInfo.ExecCount > 0 { // execInfo could be nil when stmt_stats' data is incomplete.
+		bindingPlanInfo.Plan = execInfo.Plan
+		bindingPlanInfo.ExecTimes = execInfo.ExecCount
+		bindingPlanInfo.AvgLatency = float64(execInfo.TotalTime) / float64(execInfo.ExecCount)
+		bindingPlanInfo.AvgScanRows = float64(execInfo.ProcessedKeys) / float64(execInfo.ExecCount)
+		bindingPlanInfo.AvgReturnedRows = float64(execInfo.ResultRows) / float64(execInfo.ExecCount)
+		if bindingPlanInfo.AvgReturnedRows > 0 {
+			bindingPlanInfo.LatencyPerReturnRow = bindingPlanInfo.AvgLatency / bindingPlanInfo.AvgReturnedRows
+			bindingPlanInfo.ScanRowsPerReturnRow = bindingPlanInfo.AvgScanRows / bindingPlanInfo.AvgReturnedRows
+		}
+	}
+	return bindingPlanInfo
 }
 
 // IsSimplePointPlan checks whether the plan is a simple point plan.
