@@ -176,13 +176,45 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 		sqlOrDigest, _ = NormalizeStmtForBinding(stmtNode, db, false)
 		whereCond = "where original_sql = %?"
 	}
+
+	stmtPlanInfos, err := ba.getStmtPlanInfos(whereCond, sqlOrDigest)
+	if err != nil {
+		return nil, err
+	}
 	bindings, err := readBindingsFromStorage(ba.sPool, whereCond, sqlOrDigest)
 	if err != nil {
 		return nil, err
 	}
+	bindingPlans := make([]*BindingPlanInfo, 0, len(stmtPlanInfos)+len(bindings))
 
-	// read plan info from information_schema.tidb_statements_stats
-	bindingPlans := make([]*BindingPlanInfo, 0, len(bindings))
+	for _, stmtPlanInfo := range stmtPlanInfos {
+		// TODO(henrybw): Refactor this with planGenerator.Generate()
+		sql := strings.TrimSpace(stmtPlanInfo.OriginalSQL)
+		prefix := "SELECT"
+		if len(sql) < len(prefix) || strings.ToUpper(sql[:len(prefix)]) != prefix {
+			continue
+		}
+
+		binding := &Binding{
+			OriginalSQL: sql,
+			// TODO(henrybw): These should probably be added to planGenerator.Generate()
+			SQLDigest:  stmtPlanInfo.SQLDigest,
+			PlanDigest: stmtPlanInfo.PlanDigest,
+			// TODO: construct BindSQL in a more strict way.
+			BindSQL: sql[:len(prefix)] + "/*+ " + stmtPlanInfo.PlanHint + " */ " + sql[len(prefix):],
+			Db:      currentDB,
+			Source:  "history",
+		}
+		err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
+			return prepareHints(sctx, binding)
+		})
+		if err != nil {
+			return nil, err
+		}
+		// FIXME(henrybw): Why does this break the recommend and reason columns in EXPLAIN EXPLORE?
+		bindingPlans = append(bindingPlans, newBindingPlanInfo(binding, stmtPlanInfo.ExecInfo))
+	}
+
 	for _, binding := range bindings {
 		if binding.Status == StatusDeleted {
 			continue
@@ -268,13 +300,54 @@ func (ba *bindingAuto) getPlanExecInfo(planDigest string) (plan *planExecInfo, e
 	}, nil
 }
 
-// planExecInfo represents the plan info from information_schema.tidb_statements_stats table.
+func (ba *bindingAuto) getStmtPlanInfos(whereCond, sqlOrDigest string) (infos []*stmtPlanInfo, err error) {
+	stmtQuery := fmt.Sprintf(`select original_sql, sql_digest, plan_hint, plan_digest, plan,
+		cast(result_rows as signed), cast(exec_count as signed), cast(processed_keys as signed), cast(total_time as signed)
+		from sys.statements_stats_by_binding_digest %s`, whereCond)
+	err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
+		rows, _, err := execRows(sctx, stmtQuery, sqlOrDigest)
+		if err != nil {
+			return err
+		}
+		infos = make([]*stmtPlanInfo, 0, len(rows))
+		for _, row := range rows {
+			info := &stmtPlanInfo{
+				OriginalSQL: row.GetString(0),
+				SQLDigest:   row.GetString(1),
+				PlanHint:    row.GetString(2),
+				PlanDigest:  row.GetString(3),
+				ExecInfo: &planExecInfo{
+					Plan:          row.GetString(4),
+					ResultRows:    row.GetInt64(5),
+					ExecCount:     row.GetInt64(6),
+					ProcessedKeys: row.GetInt64(7),
+					TotalTime:     row.GetInt64(8),
+				},
+			}
+			infos = append(infos, info)
+		}
+		return nil
+	})
+	return
+}
+
+// planExecInfo represents a plan and its execution info from information_schema.tidb_statements_stats table.
 type planExecInfo struct {
 	Plan          string
 	ResultRows    int64
 	ExecCount     int64
 	ProcessedKeys int64
 	TotalTime     int64
+}
+
+// stmtPlanInfo represents the SQL statement and hints that correspond to a specific plan and
+// its execution info, obtained from the information_schema.tidb_statements_stats table.
+type stmtPlanInfo struct {
+	OriginalSQL string
+	SQLDigest   string
+	PlanHint    string
+	PlanDigest  string
+	ExecInfo    *planExecInfo
 }
 
 func newBindingPlanInfo(binding *Binding, execInfo *planExecInfo) *BindingPlanInfo {
