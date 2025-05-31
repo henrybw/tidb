@@ -921,7 +921,8 @@ func (e *Explain) prepareSchema() error {
 		fieldNames = []string{"TiDB_JSON"}
 	case e.Explore:
 		fieldNames = []string{"statement", "binding_hint", "plan", "plan_digest", "avg_latency", "exec_times", "avg_scan_rows",
-			"avg_returned_rows", "latency_per_returned_row", "scan_rows_per_returned_row", "recommend", "reason", "binding_create_stmt"}
+			"avg_returned_rows", "latency_per_returned_row", "scan_rows_per_returned_row", "recommend", "reason",
+			"verify_stmt", "binding_create_stmt"}
 	default:
 		return errors.Errorf("explain format '%s' is not supported now", e.Format)
 	}
@@ -972,6 +973,18 @@ func (e *Explain) renderResultForExplore() error {
 		createBindingStmt.WriteString(" USING ")
 		createBindingStmt.WriteString(p.Binding.BindSQL)
 
+		// TODO(henrybw): Maybe this should call Restore on an AnalyzeStmt instead?
+		var explainAnalyzeStmt strings.Builder
+		explainAnalyzeStmt.WriteString("EXPLAIN ANALYZE ")
+		if p.Binding.SQLDigest != "" {
+			// TODO(henrybw): Implement this syntax for EXPLAIN ANALYZE
+			explainAnalyzeStmt.WriteString("FOR SQL DIGEST '")
+			explainAnalyzeStmt.WriteString(p.Binding.SQLDigest)
+			explainAnalyzeStmt.WriteString("'")
+		} else {
+			explainAnalyzeStmt.WriteString(p.Binding.OriginalSQL)
+		}
+
 		e.Rows = append(e.Rows, []string{
 			p.Binding.OriginalSQL,
 			hintStr,
@@ -985,6 +998,7 @@ func (e *Explain) renderResultForExplore() error {
 			strconv.FormatFloat(p.ScanRowsPerReturnRow, 'f', -1, 64),
 			p.Recommend,
 			p.Reason,
+			explainAnalyzeStmt.String(),
 			createBindingStmt.String(),
 		})
 	}
