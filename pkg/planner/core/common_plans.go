@@ -921,7 +921,7 @@ func (e *Explain) prepareSchema() error {
 		fieldNames = []string{"TiDB_JSON"}
 	case e.Explore:
 		fieldNames = []string{"statement", "binding_hint", "plan", "plan_digest", "avg_latency", "exec_times", "avg_scan_rows",
-			"avg_returned_rows", "latency_per_returned_row", "scan_rows_per_returned_row", "recommend", "reason"}
+			"avg_returned_rows", "latency_per_returned_row", "scan_rows_per_returned_row", "recommend", "reason", "binding_create_stmt"}
 	default:
 		return errors.Errorf("explain format '%s' is not supported now", e.Format)
 	}
@@ -958,6 +958,20 @@ func (e *Explain) renderResultForExplore() error {
 			return err
 		}
 
+		// TODO(henrybw): Maybe this should call Restore on a CreateBindingStmt instead?
+		var createBindingStmt strings.Builder
+		createBindingStmt.WriteString("CREATE GLOBAL BINDING FOR ")
+		if p.Binding.SQLDigest != "" {
+			// TODO(henrybw): Implement this syntax for CREATE BINDING
+			createBindingStmt.WriteString("SQL DIGEST '")
+			createBindingStmt.WriteString(p.Binding.SQLDigest)
+			createBindingStmt.WriteString("'")
+		} else {
+			createBindingStmt.WriteString(p.Binding.OriginalSQL)
+		}
+		createBindingStmt.WriteString(" USING ")
+		createBindingStmt.WriteString(p.Binding.BindSQL)
+
 		e.Rows = append(e.Rows, []string{
 			p.Binding.OriginalSQL,
 			hintStr,
@@ -970,7 +984,9 @@ func (e *Explain) renderResultForExplore() error {
 			strconv.FormatFloat(p.LatencyPerReturnRow, 'f', -1, 64),
 			strconv.FormatFloat(p.ScanRowsPerReturnRow, 'f', -1, 64),
 			p.Recommend,
-			p.Reason})
+			p.Reason,
+			createBindingStmt.String(),
+		})
 	}
 	return nil
 }
