@@ -43,30 +43,31 @@ type planGenerator struct {
 
 // Generate generates new plans for the given SQL statement.
 func (g *planGenerator) Generate(defaultSchema, sql, charset, collation string) (plans []*BindingPlanInfo, err error) {
-	// TODO: only support SQL starting with SELECT for now, support other types of SQLs later.
-	// TODO: make this check more strict.
-	sql = strings.TrimSpace(sql)
-	prefix := "SELECT"
-	if len(sql) < len(prefix) || strings.ToUpper(sql[:len(prefix)]) != prefix {
-		return nil, nil // not a SELECT statement
+	normalizedSQL, sqlDigest := parser.NormalizeDigestForBinding(sql)
+
+	p := parser.New()
+	stmt, err := p.ParseOneStmt(normalizedSQL, charset, collation)
+	if err != nil {
+		return nil, err
 	}
 
 	err = callWithSCtx(g.sPool, false, func(sctx sessionctx.Context) error {
-		genedPlans, err := generatePlanWithSCtx(sctx, defaultSchema, sql, charset, collation)
+		genedPlans, err := generatePlanWithSCtx(sctx, defaultSchema, stmt)
 		if err != nil {
 			return err
 		}
 		plans = make([]*BindingPlanInfo, 0, len(genedPlans))
 
 		for _, genedPlan := range genedPlans {
-			// TODO: construct bindingSQL in a more strict way.
-			bindingSQL := sql[:len(prefix)] + " /*+ " + genedPlan.planHints + " */ " + sql[len(prefix):]
+			bindingSQL := GenerateBindingSQL(stmt, genedPlan.planHints, defaultSchema)
+
 			binding := &Binding{
-				OriginalSQL: sql,
+				OriginalSQL: normalizedSQL,
+				SQLDigest:   sqlDigest.String(),
+				PlanDigest:  genedPlan.planDigest,
 				BindSQL:     bindingSQL,
 				Db:          defaultSchema,
 				Source:      "generated",
-				PlanDigest:  genedPlan.planDigest,
 			}
 			if err := prepareHints(sctx, binding); err != nil {
 				return err
@@ -202,12 +203,7 @@ func newStateWithNewFix(old *state, fixID uint64, fixVal string) *state {
 	return newState
 }
 
-func generatePlanWithSCtx(sctx sessionctx.Context, defaultSchema, sql, charset, collation string) (plans []*genedPlan, err error) {
-	p := parser.New()
-	stmt, err := p.ParseOneStmt(sql, charset, collation)
-	if err != nil {
-		return nil, err
-	}
+func generatePlanWithSCtx(sctx sessionctx.Context, defaultSchema string, stmt ast.StmtNode) (plans []*genedPlan, err error) {
 	sctx.GetSessionVars().CurrentDB = defaultSchema
 	sctx.GetSessionVars().CostModelVersion = 2 // cost factor only works on cost-model v2
 	vars, fixes, err := RecordRelevantOptVarsAndFixes(sctx, stmt)

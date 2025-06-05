@@ -116,6 +116,7 @@ func (ba *bindingAuto) ExplorePlansForSQL(stmtSCtx base.PlanContext, sqlOrDigest
 		}
 	}
 
+	// TODO(henrybw): Maybe we should filter generated plans that are identical to historical plans
 	planCandidates := append(historicalPlans, generatedPlans...)
 	ok, err := ba.fillRecommendation(planCandidates, ba.ruleBasedPredictor, "rule-based")
 	if err != nil || ok { // error or hit any rule
@@ -211,13 +212,13 @@ func (ba *bindingAuto) runToGetExecInfo(plans []*BindingPlanInfo) error {
 func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, collation string) ([]*BindingPlanInfo, error) {
 	// parse and normalize sqlOrDigest
 	// if the length is 64 and it has no " ", treat it as a digest.
+	p := parser.New()
 	var bindingsWhereCond, stmtStatsWhereCond string
 	sqlOrDigest = strings.TrimSpace(sqlOrDigest)
 	if len(sqlOrDigest) == 64 && !strings.Contains(sqlOrDigest, " ") {
 		bindingsWhereCond = "where sql_digest = %?"
 		stmtStatsWhereCond = "where binding_digest = %?"
 	} else {
-		p := parser.New()
 		stmtNode, err := p.ParseOneStmt(sqlOrDigest, charset, collation)
 		if err != nil {
 			return nil, errors.NewNoStackErrorf("failed to normalize the SQL: %v", err)
@@ -242,9 +243,9 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 	for _, historicalPlan := range historicalPlans {
 		// TODO(henrybw): Refactor this with planGenerator.Generate()
 		sql := strings.TrimSpace(historicalPlan.OriginalSQL)
-		prefix := "SELECT"
-		if len(sql) < len(prefix) || strings.ToUpper(sql[:len(prefix)]) != prefix {
-			continue
+		stmtNode, err := p.ParseOneStmt(sql, charset, collation)
+		if err != nil {
+			return nil, err
 		}
 
 		planHint := historicalPlan.PlanHint
@@ -252,16 +253,17 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 			// TODO(henrybw): Generate hints from the historical plan
 			continue
 		}
+		// FIXME(henrybw): This causes parse errors in prepareHints
+		bindSQL := GenerateBindingSQL(stmtNode, planHint, currentDB)
 
 		binding := &Binding{
 			OriginalSQL: sql,
 			// TODO(henrybw): These should probably be added to planGenerator.Generate()
 			SQLDigest:  historicalPlan.SQLDigest,
 			PlanDigest: historicalPlan.PlanDigest,
-			// TODO: construct BindSQL in a more strict way.
-			BindSQL: sql[:len(prefix)] + " /*+ " + planHint + " */ " + sql[len(prefix):],
-			Db:      currentDB,
-			Source:  "history",
+			BindSQL:    bindSQL,
+			Db:         currentDB,
+			Source:     "history",
 		}
 		err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
 			return prepareHints(sctx, binding)
