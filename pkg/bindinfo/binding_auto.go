@@ -108,6 +108,7 @@ func (ba *bindingAuto) ExplorePlansForSQL(currentDB, sqlOrDigest, charset, colla
 		}
 	}
 
+	// TODO(henrybw): Maybe we should filter generated plans that are identical to historical plans
 	planCandidates := append(historicalPlans, generatedPlans...)
 	ok, err := ba.fillRecommendation(planCandidates, ba.ruleBasedPredictor, "rule-based")
 	if err != nil || ok { // error or hit any rule
@@ -162,12 +163,12 @@ func (ba *bindingAuto) runToGetExecInfo(plans []*BindingPlanInfo) error {
 func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, collation string) ([]*BindingPlanInfo, error) {
 	// parse and normalize sqlOrDigest
 	// if the length is 64 and it has no " ", treat it as a digest.
+	p := parser.New()
 	var whereCond string
 	sqlOrDigest = strings.TrimSpace(sqlOrDigest)
 	if len(sqlOrDigest) == 64 && !strings.Contains(sqlOrDigest, " ") {
 		whereCond = "where sql_digest = %?"
 	} else {
-		p := parser.New()
 		stmtNode, err := p.ParseOneStmt(sqlOrDigest, charset, collation)
 		if err != nil {
 			return nil, errors.NewNoStackErrorf("failed to normalize the SQL: %v", err)
@@ -188,22 +189,20 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 	bindingPlans := make([]*BindingPlanInfo, 0, len(stmtPlanInfos)+len(bindings))
 
 	for _, stmtPlanInfo := range stmtPlanInfos {
-		// TODO(henrybw): Refactor this with planGenerator.Generate()
 		sql := strings.TrimSpace(stmtPlanInfo.OriginalSQL)
-		prefix := "SELECT"
-		if len(sql) < len(prefix) || strings.ToUpper(sql[:len(prefix)]) != prefix {
-			continue
+		stmtNode, err := p.ParseOneStmt(sql, charset, collation)
+		if err != nil {
+			return nil, err
 		}
+		bindSQL := GenerateBindingSQL(stmtNode, stmtPlanInfo.PlanHint, currentDB)
 
 		binding := &Binding{
 			OriginalSQL: sql,
-			// TODO(henrybw): These should probably be added to planGenerator.Generate()
-			SQLDigest:  stmtPlanInfo.SQLDigest,
-			PlanDigest: stmtPlanInfo.PlanDigest,
-			// TODO: construct BindSQL in a more strict way.
-			BindSQL: sql[:len(prefix)] + "/*+ " + stmtPlanInfo.PlanHint + " */ " + sql[len(prefix):],
-			Db:      currentDB,
-			Source:  "history",
+			SQLDigest:   stmtPlanInfo.SQLDigest,
+			PlanDigest:  stmtPlanInfo.PlanDigest,
+			BindSQL:     bindSQL,
+			Db:          currentDB,
+			Source:      "history",
 		}
 		err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
 			return prepareHints(sctx, binding)
