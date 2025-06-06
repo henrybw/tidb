@@ -160,6 +160,8 @@ func TestAddStatement(t *testing.T) {
 				UnpackedBytesSentTiFlashCrossZone:     stmtExecInfo1.TiKVExecDetails.UnpackedBytesSentMPPCrossZone,
 				UnpackedBytesReceivedTiFlashCrossZone: stmtExecInfo1.TiKVExecDetails.UnpackedBytesReceivedMPPCrossZone,
 			},
+			storageKV:  stmtExecInfo1.TiKVExecDetails.UnpackedBytesSentKVTotal > 0,
+			storageMPP: stmtExecInfo1.TiKVExecDetails.UnpackedBytesSentMPPTotal > 0,
 		},
 	}
 	stmtExecInfo1.ExecDetail.CommitDetail.Mu.Unlock()
@@ -328,6 +330,8 @@ func TestAddStatement(t *testing.T) {
 	expectedSummaryElement.SumRUWaitDuration += stmtExecInfo2.RUDetail.RUWaitDuration()
 	expectedSummaryElement.MaxRUWaitDuration = stmtExecInfo2.RUDetail.RUWaitDuration()
 	expectedSummaryElement.StmtNetworkTrafficSummary.Add(stmtExecInfo2.TiKVExecDetails)
+	expectedSummaryElement.storageKV = stmtExecInfo2.TiKVExecDetails.UnpackedBytesSentKVTotal > 0
+	expectedSummaryElement.storageMPP = stmtExecInfo2.TiKVExecDetails.UnpackedBytesSentMPPTotal > 0
 
 	ssMap.AddStatement(stmtExecInfo2)
 	summary, ok = ssMap.summaryMap.Get(key)
@@ -460,6 +464,8 @@ func TestAddStatement(t *testing.T) {
 	expectedSummaryElement.SumWRU += stmtExecInfo3.RUDetail.WRU()
 	expectedSummaryElement.SumRUWaitDuration += stmtExecInfo3.RUDetail.RUWaitDuration()
 	expectedSummaryElement.StmtNetworkTrafficSummary.Add(stmtExecInfo3.TiKVExecDetails)
+	expectedSummaryElement.storageKV = stmtExecInfo3.TiKVExecDetails.UnpackedBytesSentKVTotal > 0
+	expectedSummaryElement.storageMPP = stmtExecInfo3.TiKVExecDetails.UnpackedBytesSentMPPTotal > 0
 
 	ssMap.AddStatement(stmtExecInfo3)
 	summary, ok = ssMap.summaryMap.Get(key)
@@ -606,7 +612,9 @@ func matchStmtSummaryByDigest(first, second *stmtSummaryByDigest) bool {
 			!ssElement1.lastSeen.Equal(ssElement2.lastSeen) ||
 			ssElement1.resourceGroupName != ssElement2.resourceGroupName ||
 			ssElement1.StmtRUSummary != ssElement2.StmtRUSummary ||
-			ssElement1.StmtNetworkTrafficSummary != ssElement2.StmtNetworkTrafficSummary {
+			ssElement1.StmtNetworkTrafficSummary != ssElement2.StmtNetworkTrafficSummary ||
+			ssElement1.storageKV != ssElement2.storageKV ||
+			ssElement1.storageMPP != ssElement2.storageMPP {
 			return false
 		}
 		if len(ssElement1.backoffTypes) != len(ssElement2.backoffTypes) {
@@ -868,6 +876,8 @@ func newStmtSummaryReaderForTest(ssMap *stmtSummaryByDigestMap) *stmtSummaryRead
 		ResourceGroupName,
 		AvgTidbCPUTimeStr,
 		AvgTikvCPUTimeStr,
+		StorageKVStr,
+		StorageMPPStr,
 	}
 	cols := make([]*model.ColumnInfo, len(columnNames))
 	for i := range columnNames {
