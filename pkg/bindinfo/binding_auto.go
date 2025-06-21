@@ -162,10 +162,11 @@ func (ba *bindingAuto) runToGetExecInfo(plans []*BindingPlanInfo) error {
 func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, collation string) ([]*BindingPlanInfo, error) {
 	// parse and normalize sqlOrDigest
 	// if the length is 64 and it has no " ", treat it as a digest.
-	var whereCond string
+	var bindingsWhereCond, stmtStatsWhereCond string
 	sqlOrDigest = strings.TrimSpace(sqlOrDigest)
 	if len(sqlOrDigest) == 64 && !strings.Contains(sqlOrDigest, " ") {
-		whereCond = "where sql_digest = %?"
+		bindingsWhereCond = "where sql_digest = %?"
+		stmtStatsWhereCond = "where binding_digest = %?"
 	} else {
 		p := parser.New()
 		stmtNode, err := p.ParseOneStmt(sqlOrDigest, charset, collation)
@@ -174,15 +175,49 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 		}
 		db := utilparser.GetDefaultDB(stmtNode, currentDB)
 		sqlOrDigest, _ = NormalizeStmtForBinding(stmtNode, db, false)
-		whereCond = "where original_sql = %?"
+		bindingsWhereCond = "where original_sql = %?"
+		stmtStatsWhereCond = "where binding_digest_text = %?"
 	}
-	bindings, err := readBindingsFromStorage(ba.sPool, whereCond, sqlOrDigest)
+
+	bindings, err := readBindingsFromStorage(ba.sPool, bindingsWhereCond, sqlOrDigest)
 	if err != nil {
 		return nil, err
 	}
+	historicalPlans, err := ba.getHistoricalPlans(stmtStatsWhereCond, sqlOrDigest)
+	if err != nil {
+		return nil, err
+	}
+	bindingPlans := make([]*BindingPlanInfo, 0, len(bindings)+len(historicalPlans))
 
-	// read plan info from information_schema.tidb_statements_stats
-	bindingPlans := make([]*BindingPlanInfo, 0, len(bindings))
+	// TODO(henrybw): How do we deal with bindings and historical plans that have the same plan digest?
+	for _, historicalPlan := range historicalPlans {
+		// TODO(henrybw): Refactor this with planGenerator.Generate()
+		sql := strings.TrimSpace(historicalPlan.OriginalSQL)
+		prefix := "SELECT"
+		if len(sql) < len(prefix) || strings.ToUpper(sql[:len(prefix)]) != prefix {
+			continue
+		}
+
+		binding := &Binding{
+			OriginalSQL: sql,
+			// TODO(henrybw): These should probably be added to planGenerator.Generate()
+			SQLDigest:  historicalPlan.SQLDigest,
+			PlanDigest: historicalPlan.PlanDigest,
+			// TODO: construct BindSQL in a more strict way.
+			BindSQL: sql[:len(prefix)] + " /*+ " + historicalPlan.PlanHint + " */ " + sql[len(prefix):],
+			Db:      currentDB,
+			Source:  "history",
+		}
+		err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
+			return prepareHints(sctx, binding)
+		})
+		if err != nil {
+			return nil, err
+		}
+		// FIXME(henrybw): Why does this break the recommend and reason columns in EXPLAIN EXPLORE?
+		bindingPlans = append(bindingPlans, newBindingPlanInfo(binding, historicalPlan.ExecInfo))
+	}
+
 	for _, binding := range bindings {
 		if binding.Status == StatusDeleted {
 			continue
@@ -234,18 +269,21 @@ func (*bindingAuto) fillRecommendation(plans []*BindingPlanInfo, predictor PlanP
 	return recommended, nil
 }
 
+func stmtStatsTableName() string {
+	if intest.InTest { // don't need to access the cluster table in tests.
+		return "information_schema.tidb_statements_stats"
+	}
+	return "information_schema.cluster_tidb_statements_stats"
+}
+
 // getPlanExecInfo gets the plan execution info from information_schema.tidb_statements_stats table.
 func (ba *bindingAuto) getPlanExecInfo(planDigest string) (plan *planExecInfo, err error) {
 	if planDigest == "" {
 		return nil, nil
 	}
-	stmtStatsTable := "information_schema.cluster_tidb_statements_stats"
-	if intest.InTest { // don't need to access the cluster table in tests.
-		stmtStatsTable = "information_schema.tidb_statements_stats"
-	}
 	stmtQuery := fmt.Sprintf(`select cast(sum(result_rows) as signed), cast(sum(exec_count) as signed),
        cast(sum(processed_keys) as signed), cast(sum(total_time) as signed), any_value(plan)
-       from %v where plan_digest = '%v'`, stmtStatsTable, planDigest)
+       from %v where plan_digest = '%v'`, stmtStatsTableName(), planDigest)
 
 	var rows []chunk.Row
 	err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
@@ -268,13 +306,59 @@ func (ba *bindingAuto) getPlanExecInfo(planDigest string) (plan *planExecInfo, e
 	}, nil
 }
 
-// planExecInfo represents the plan info from information_schema.tidb_statements_stats table.
+func (ba *bindingAuto) getHistoricalPlans(whereCond, sqlOrDigest string) (historicalPlans []*historicalPlanInfo, err error) {
+	stmtQuery := fmt.Sprintf(`select binding_digest_text, binding_digest, plan_digest, any_value(plan_hint), any_value(plan),
+		cast(sum(result_rows) as signed), cast(sum(exec_count) as signed), cast(sum(processed_keys) as signed), cast(sum(total_time) as signed)
+		from %s %s group by binding_digest, binding_digest_text, plan_digest having binding_digest != "" and binding_digest_text != "" and plan_digest != ""`,
+		stmtStatsTableName(), whereCond)
+	err = callWithSCtx(ba.sPool, false, func(sctx sessionctx.Context) error {
+		rows, _, err := execRows(sctx, stmtQuery, sqlOrDigest)
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			// TODO: read data from workload_schema.hist_stmt_stats in this case if it's enabled.
+			return nil
+		}
+		historicalPlans = make([]*historicalPlanInfo, 0, len(rows))
+		for _, row := range rows {
+			info := &historicalPlanInfo{
+				OriginalSQL: row.GetString(0),
+				SQLDigest:   row.GetString(1),
+				PlanDigest:  row.GetString(2),
+				PlanHint:    row.GetString(3),
+				ExecInfo: &planExecInfo{
+					Plan:          row.GetString(4),
+					ResultRows:    row.GetInt64(5),
+					ExecCount:     row.GetInt64(6),
+					ProcessedKeys: row.GetInt64(7),
+					TotalTime:     row.GetInt64(8),
+				},
+			}
+			historicalPlans = append(historicalPlans, info)
+		}
+		return nil
+	})
+	return
+}
+
+// planExecInfo represents a plan and its execution info from information_schema.tidb_statements_stats table.
 type planExecInfo struct {
 	Plan          string
 	ResultRows    int64
 	ExecCount     int64
 	ProcessedKeys int64
 	TotalTime     int64
+}
+
+// historicalPlanInfo represents the SQL statement and hints that correspond to a specific plan and
+// its execution info, obtained from the information_schema.tidb_statements_stats table.
+type historicalPlanInfo struct {
+	OriginalSQL string
+	SQLDigest   string
+	PlanHint    string
+	PlanDigest  string
+	ExecInfo    *planExecInfo
 }
 
 func newBindingPlanInfo(binding *Binding, execInfo *planExecInfo) *BindingPlanInfo {
