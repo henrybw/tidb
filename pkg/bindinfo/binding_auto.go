@@ -247,13 +247,19 @@ func (ba *bindingAuto) getBindingPlanInfo(currentDB, sqlOrDigest, charset, colla
 			continue
 		}
 
+		planHint := historicalPlan.PlanHint
+		if len(planHint) == 0 {
+			// TODO(henrybw): Generate hints from the historical plan
+			continue
+		}
+
 		binding := &Binding{
 			OriginalSQL: sql,
 			// TODO(henrybw): These should probably be added to planGenerator.Generate()
 			SQLDigest:  historicalPlan.SQLDigest,
 			PlanDigest: historicalPlan.PlanDigest,
 			// TODO: construct BindSQL in a more strict way.
-			BindSQL: sql[:len(prefix)] + " /*+ " + historicalPlan.PlanHint + " */ " + sql[len(prefix):],
+			BindSQL: sql[:len(prefix)] + " /*+ " + planHint + " */ " + sql[len(prefix):],
 			Db:      currentDB,
 			Source:  "history",
 		}
