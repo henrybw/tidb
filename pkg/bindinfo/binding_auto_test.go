@@ -16,6 +16,8 @@ package bindinfo_test
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -217,8 +219,8 @@ func TestExplainExploreVerifyAndBind(t *testing.T) {
 	require.True(t, len(tk.MustQuery(`show global bindings`).Rows()) == 0) // no binding
 
 	rs := tk.MustQuery(`explain explore select * from t`).Rows()
-	runStmt := rs[0][12].(string)     // explain analyze <plan_digest>
-	bindingStmt := rs[0][13].(string) // create global binding from history using plan digest <plan_digest>
+	runStmt := rs[0][13].(string)     // explain analyze <plan_digest>
+	bindingStmt := rs[0][14].(string) // create global binding from history using plan digest <plan_digest>
 
 	require.True(t, strings.HasPrefix(runStmt, "EXPLAIN ANALYZE"))
 	require.True(t, strings.HasPrefix(bindingStmt, "CREATE GLOBAL BINDING"))
@@ -230,6 +232,42 @@ func TestExplainExploreVerifyAndBind(t *testing.T) {
 	tk.MustQuery(`select * from t`)
 	tk.MustQuery(`select @@last_plan_from_binding`).Check(testkit.Rows("1"))
 	require.True(t, len(tk.MustQuery(`show global bindings`).Rows()) == 1)
+}
+
+func TestExplainExploreSources(t *testing.T) {
+	store := testkit.CreateMockStore(t)
+	tk := testkit.NewTestKit(t, store)
+	tk.MustExec("use test")
+	tk.MustExec(`create table t (a int, b int, key(a))`)
+	tk.MustExec(`insert into t values (1, 2), (2, 3), (3, 4), (4, 5)`)
+
+	checkSources := func(explainExploreSQL string, expectedSources ...string) {
+		expected := make(map[string]any)
+		for _, source := range expectedSources {
+			expected[source] = struct{}{}
+		}
+		found := make(map[string]any)
+
+		rs := tk.MustQuery(explainExploreSQL).Rows()
+		for _, row := range rs {
+			source := row[12].(string)
+			_, exists := expected[source]
+			require.Truef(t, exists, `unexpected source "%s", expected sources: %v`, source, expectedSources)
+			found[source] = struct{}{}
+		}
+
+		for _, source := range expectedSources {
+			_, exists := found[source]
+			require.Truef(t, exists, `expected source "%s" was not found; only found sources %v`, source, slices.Collect(maps.Keys(found)))
+		}
+	}
+
+	// With no bindings or historical executions, the only sources should be "generated"
+	checkSources(`explain explore select b from t where a = 1`, bindinfo.SourceGenerated)
+
+	// Creating a binding introduces a "manual" source
+	tk.MustExec(`create global binding using select b from t where a = 1`)
+	checkSources(`explain explore select b from t where a = 1`, bindinfo.SourceGenerated, bindinfo.SourceManual)
 }
 
 func TestPlanGeneration(t *testing.T) {

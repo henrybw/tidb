@@ -65,7 +65,7 @@ func (g *planGenerator) Generate(defaultSchema, sql, charset, collation string) 
 				OriginalSQL: sql,
 				BindSQL:     bindingSQL,
 				Db:          defaultSchema,
-				Source:      "generated",
+				Source:      SourceGenerated,
 				PlanDigest:  genedPlan.planDigest,
 			}
 			if err := prepareHints(sctx, binding); err != nil {
