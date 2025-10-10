@@ -50,24 +50,24 @@ import (
 const (
 	MaxLogFileSize = 4096 // MB
 	// MaxTxnEntrySize is the max value of TxnEntrySizeLimit.
-	MaxTxnEntrySizeLimit = 120 * 1024 * 1024 // 120MB
+	MaxTxnEntrySizeLimit = 1000 * 120 * 1024 * 1024 // 120MB
 	// MaxPluginAuditLogBufferSize is the max buffer size for plugin audit log.
 	MaxPluginAuditLogBufferSize = 100 * 1024 * 1024
 	// MaxPluginAuditLogFlushInterval is the max time interval to flush plugin audit log.
 	MaxPluginAuditLogFlushInterval = 3600
 	// DefTxnEntrySizeLimit is the default value of TxnEntrySizeLimit.
-	DefTxnEntrySizeLimit = 6 * 1024 * 1024
+	DefTxnEntrySizeLimit = 1000 * 6 * 1024 * 1024
 	// DefTxnTotalSizeLimit is the default value of TxnTxnTotalSizeLimit.
-	DefTxnTotalSizeLimit        = 100 * 1024 * 1024
+	DefTxnTotalSizeLimit        = 1000 * 100 * 1024 * 1024
 	SuperLargeTxnSize    uint64 = 100 * 1024 * 1024 * 1024 * 1024 // 100T, we expect a txn can never be this large
 	// DefMaxIndexLength is the maximum index length(in bytes). This value is consistent with MySQL.
-	DefMaxIndexLength = 3072
+	DefMaxIndexLength = 3072000
 	// DefMaxOfMaxIndexLength is the maximum index length(in bytes) for TiDB v3.0.7 and previous version.
-	DefMaxOfMaxIndexLength = 3072 * 4
+	DefMaxOfMaxIndexLength = 3072000 * 4
 	// DefIndexLimit is the limitation of index on a single table. This value is consistent with MySQL.
-	DefIndexLimit = 64
+	DefIndexLimit = 640000
 	// DefMaxOfIndexLimit is the maximum limitation of index on a single table for TiDB.
-	DefMaxOfIndexLimit = 64 * 8
+	DefMaxOfIndexLimit = 640000 * 8
 	// DefPort is the default port of TiDB
 	DefPort = 4000
 	// DefStatusPort is the default status port of TiDB
@@ -77,9 +77,9 @@ const (
 	// DefStatusHost is the default status host of TiDB
 	DefStatusHost = "0.0.0.0"
 	// DefTableColumnCountLimit is limit of the number of columns in a table
-	DefTableColumnCountLimit = 1017
+	DefTableColumnCountLimit = 1017000
 	// DefMaxOfTableColumnCountLimit is maximum limitation of the number of columns in a table
-	DefMaxOfTableColumnCountLimit = 4096
+	DefMaxOfTableColumnCountLimit = 4096000
 	// DefStatsLoadConcurrencyLimit is limit of the concurrency of stats-load. When it is set to 0, it will be set by syncload.GetSyncLoadConcurrencyByCPU.
 	DefStatsLoadConcurrencyLimit = 0
 	// DefMaxOfStatsLoadConcurrencyLimit is maximum limitation of the concurrency of stats-load
@@ -965,9 +965,9 @@ var defaultConf = Config{
 	OOMAction:                    "cancel",
 	EnableBatchDML:               false,
 	CheckMb4ValueInUTF8:          *NewAtomicBool(true),
-	MaxIndexLength:               3072,
-	IndexLimit:                   64,
-	TableColumnCountLimit:        1017,
+	MaxIndexLength:               3072000,
+	IndexLimit:                   640000,
+	TableColumnCountLimit:        1017000,
 	AlterPrimaryKey:              false,
 	TreatOldVersionUTF8AsUTF8MB4: true,
 	EnableTableLock:              false,
