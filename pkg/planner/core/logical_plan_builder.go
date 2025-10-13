@@ -4117,16 +4117,14 @@ func addExtraPhysTblIDColumn4DS(ds *logicalop.DataSource) *expression.Column {
 		OrigName: fmt.Sprintf("%v.%v.%v", ds.DBName, ds.TableInfo.Name, model.ExtraPhysTblIDName),
 	}
 
-	ds.Columns = append(ds.Columns, model.NewExtraPhysTblIDColInfo())
-	schema := ds.Schema()
-	schema.Append(pidCol)
+	ds.AppendColumn(pidCol, model.NewExtraPhysTblIDColInfo())
+	ds.AppendTableCol(pidCol)
 	ds.SetOutputNames(append(ds.OutputNames(), &types.FieldName{
 		DBName:      ds.DBName,
 		TblName:     ds.TableInfo.Name,
 		ColName:     model.ExtraPhysTblIDName,
 		OrigColName: model.ExtraPhysTblIDName,
 	}))
-	ds.AppendTableCol(pidCol)
 	return pidCol
 }
 
@@ -4702,8 +4700,8 @@ func (b *PlanBuilder) buildDataSource(ctx context.Context, tn *ast.TableName, as
 	var handleCols util.HandleCols
 	schema := expression.NewSchema(make([]*expression.Column, 0, countCnt)...)
 	names := make([]*types.FieldName, 0, countCnt)
+	ds.SetSchema(schema)
 	for i, col := range columns {
-		ds.Columns = append(ds.Columns, col.ToInfo())
 		names = append(names, &types.FieldName{
 			DBName:      dbName,
 			TblName:     tableInfo.Name,
@@ -4723,7 +4721,7 @@ func (b *PlanBuilder) buildDataSource(ctx context.Context, tn *ast.TableName, as
 		if col.IsPKHandleColumn(tableInfo) {
 			handleCols = util.NewIntHandleCols(newCol)
 		}
-		schema.Append(newCol)
+		ds.AppendColumn(newCol, col.ToInfo())
 		ds.AppendTableCol(newCol)
 	}
 	// We append an extra handle column to the schema when the handle
@@ -4735,15 +4733,14 @@ func (b *PlanBuilder) buildDataSource(ctx context.Context, tn *ast.TableName, as
 		} else {
 			extraCol := ds.NewExtraHandleSchemaCol()
 			handleCols = util.NewIntHandleCols(extraCol)
-			ds.Columns = append(ds.Columns, model.NewExtraHandleColInfo())
-			schema.Append(extraCol)
+			ds.AppendColumn(extraCol, model.NewExtraHandleColInfo())
+			ds.AppendTableCol(extraCol)
 			names = append(names, &types.FieldName{
 				DBName:      dbName,
 				TblName:     tableInfo.Name,
 				ColName:     model.ExtraHandleName,
 				OrigColName: model.ExtraHandleName,
 			})
-			ds.AppendTableCol(extraCol)
 		}
 	}
 	ds.HandleCols = handleCols
@@ -4751,7 +4748,6 @@ func (b *PlanBuilder) buildDataSource(ctx context.Context, tn *ast.TableName, as
 	handleMap := make(map[int64][]util.HandleCols)
 	handleMap[tableInfo.ID] = []util.HandleCols{handleCols}
 	b.handleHelper.pushMap(handleMap)
-	ds.SetSchema(schema)
 	ds.SetOutputNames(names)
 	// setPreferredStoreType will mark user preferred path, which should be shared by all ds alternative. Here
 	// we only mark it for the AllPossibleAccessPaths(since the element inside is shared by PossibleAccessPaths),

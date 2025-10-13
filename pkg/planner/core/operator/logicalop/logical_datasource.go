@@ -196,9 +196,7 @@ func (ds *DataSource) PruneColumns(parentUsedCols []*expression.Column) (base.Lo
 				continue
 			}
 			prunedColumns = append(prunedColumns, ds.Schema().Columns[i])
-			// TODO: investigate why we cannot use slices.Delete for these two:
-			ds.Schema().Columns = append(ds.Schema().Columns[:i], ds.Schema().Columns[i+1:]...)
-			ds.Columns = append(ds.Columns[:i], ds.Columns[i+1:]...)
+			ds.PruneColumn(i)
 		}
 	}
 	addOneHandle := false
@@ -208,8 +206,7 @@ func (ds *DataSource) PruneColumns(parentUsedCols []*expression.Column) (base.Lo
 		var handleCol *expression.Column
 		var handleColInfo *model.ColumnInfo
 		handleCol, handleColInfo = preferKeyColumnFromTable(ds, originSchemaColumns, originColumns)
-		ds.Columns = append(ds.Columns, handleColInfo)
-		ds.Schema().Append(handleCol)
+		ds.AppendColumn(handleCol, handleColInfo)
 		addOneHandle = true
 	}
 	// ref: https://github.com/pingcap/tidb/issues/44579
@@ -594,6 +591,23 @@ func preferKeyColumnFromTable(dataSource *DataSource, originColumns []*expressio
 		}
 	}
 	return resultColumn, resultColumnInfo
+}
+
+func (ds *DataSource) AppendColumn(col *expression.Column, colInfo *model.ColumnInfo) {
+	colIdx := len(ds.Columns)
+	ds.ColIdxsByName[colInfo.Name.L] = colIdx
+	ds.Columns = append(ds.Columns, colInfo)
+	ds.Schema().Append(col)
+}
+
+func (ds *DataSource) PruneColumn(colIdx int) {
+	delete(ds.ColIdxsByName, ds.Columns[colIdx].Name.L)
+	for i := colIdx + 1; i < len(ds.Columns); i++ {
+		ds.ColIdxsByName[ds.Columns[i].Name.L] = i - 1
+	}
+	// TODO: investigate why we cannot use slices.Delete for these two:
+	ds.Schema().Columns = append(ds.Schema().Columns[:colIdx], ds.Schema().Columns[colIdx+1:]...)
+	ds.Columns = append(ds.Columns[:colIdx], ds.Columns[colIdx+1:]...)
 }
 
 // AppendTableCol appends a column to the original columns of the table before pruning,
