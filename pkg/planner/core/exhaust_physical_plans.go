@@ -1217,6 +1217,7 @@ func constructDS2TableScanTask(
 	ts := physicalop.PhysicalTableScan{
 		Table:           ds.TableInfo,
 		Columns:         ds.Columns,
+		ColIdxsByName:   ds.ColIdxsByName,
 		TableAsName:     ds.TableAsName,
 		DBName:          ds.DBName,
 		FilterCondition: ds.PushedDownConds,
@@ -1464,6 +1465,7 @@ func constructDS2IndexScanTask(
 		// On this way, it's double read case.
 		ts := physicalop.PhysicalTableScan{
 			Columns:         ds.Columns,
+			ColIdxsByName:   ds.ColIdxsByName,
 			Table:           is.Table,
 			TableAsName:     ds.TableAsName,
 			DBName:          ds.DBName,

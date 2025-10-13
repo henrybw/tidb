@@ -17,6 +17,7 @@ package logicalop
 import (
 	"bytes"
 	"fmt"
+	"maps"
 
 	"github.com/pingcap/tidb/pkg/expression"
 	"github.com/pingcap/tidb/pkg/infoschema"
@@ -50,6 +51,8 @@ type DataSource struct {
 	TableInfo     *model.TableInfo `hash64-equals:"true"`
 	Columns       []*model.ColumnInfo
 	DBName        ast.CIStr
+
+	ColIdxsByName map[string]int
 
 	TableAsName *ast.CIStr `hash64-equals:"true"`
 	// IndexMergeHints are the hint for indexmerge.
@@ -502,6 +505,8 @@ func (ds *DataSource) buildIndexGather(path *util.AccessPath) base.LogicalPlan {
 
 	is.Columns = make([]*model.ColumnInfo, len(ds.Columns))
 	copy(is.Columns, ds.Columns)
+	is.ColIdxsByName = make(map[string]int, len(ds.Columns))
+	maps.Copy(is.ColIdxsByName, ds.ColIdxsByName)
 	is.SetSchema(ds.Schema())
 	is.IdxCols, is.IdxColLens = expression.IndexInfo2PrefixCols(is.Columns, is.Schema().Columns, is.Index)
 

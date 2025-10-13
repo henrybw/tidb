@@ -4690,6 +4690,7 @@ func (b *PlanBuilder) buildDataSource(ctx context.Context, tn *ast.TableName, as
 		PossibleAccessPaths:    possiblePaths,
 		AllPossibleAccessPaths: allPaths,
 		Columns:                make([]*model.ColumnInfo, 0, countCnt),
+		ColIdxsByName:          make(map[string]int, countCnt),
 		PartitionNames:         tn.PartitionNames,
 		TblCols:                make([]*expression.Column, 0, countCnt),
 		TblColsByID:            make(map[int64]*expression.Column, countCnt),

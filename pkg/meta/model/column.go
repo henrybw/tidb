@@ -311,3 +311,11 @@ func NewExtraPhysTblIDColInfo() *ColumnInfo {
 	colInfo.SetCollate(charset.CollationBin)
 	return colInfo
 }
+
+func GetColIdxsByName(colInfos []*ColumnInfo) map[string]int {
+	colIdxsByName := make(map[string]int, len(colInfos))
+	for i, info := range colInfos {
+		colIdxsByName[info.Name.L] = i
+	}
+	return colIdxsByName
+}
