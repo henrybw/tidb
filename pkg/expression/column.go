@@ -754,25 +754,25 @@ func ColInfo2Col(cols []*Column, col *model.ColumnInfo) *Column {
 }
 
 // IndexCol2Col finds the corresponding column of the IndexColumn in a column slice.
-func IndexCol2Col(colInfos []*model.ColumnInfo, cols []*Column, col *model.IndexColumn) *Column {
-	for i, info := range colInfos {
-		if info.Name.L == col.Name.L {
-			if col.Length > 0 && info.FieldType.GetFlen() > col.Length {
-				c := *cols[i]
-				c.IsPrefix = true
-				return &c
-			}
-			return cols[i]
-		}
+func IndexCol2Col(colInfos []*model.ColumnInfo, cols []*Column, colIdxsByName map[string]int, col *model.IndexColumn) *Column {
+	i, found := colIdxsByName[col.Name.L]
+	if !found {
+		return nil
 	}
-	return nil
+	info := colInfos[i]
+	if col.Length > 0 && info.FieldType.GetFlen() > col.Length {
+		c := *cols[i]
+		c.IsPrefix = true
+		return &c
+	}
+	return cols[i]
 }
 
-func indexInfo2ColsImpl(colInfos []*model.ColumnInfo, cols []*Column, index *model.IndexInfo, onlyPrefixCols bool) ([]*Column, []int) {
+func indexInfo2ColsImpl(colInfos []*model.ColumnInfo, cols []*Column, colIdxsByName map[string]int, index *model.IndexInfo, onlyPrefixCols bool) ([]*Column, []int) {
 	retCols := make([]*Column, 0, len(index.Columns))
 	lens := make([]int, 0, len(index.Columns))
 	for _, c := range index.Columns {
-		col := IndexCol2Col(colInfos, cols, c)
+		col := IndexCol2Col(colInfos, cols, colIdxsByName, c)
 		if col == nil {
 			if onlyPrefixCols {
 				return retCols, lens
@@ -796,16 +796,16 @@ func indexInfo2ColsImpl(colInfos []*model.ColumnInfo, cols []*Column, index *mod
 // If this index has three IndexColumn that the 1st and 3rd IndexColumn has corresponding *Column,
 // the return value will be only the 1st corresponding *Column and its length.
 // TODO: Use a struct to represent {*Column, int}.
-func IndexInfo2PrefixCols(colInfos []*model.ColumnInfo, cols []*Column, index *model.IndexInfo) ([]*Column, []int) {
-	return indexInfo2ColsImpl(colInfos, cols, index, true)
+func IndexInfo2PrefixCols(colInfos []*model.ColumnInfo, cols []*Column, colIdxsByName map[string]int, index *model.IndexInfo) ([]*Column, []int) {
+	return indexInfo2ColsImpl(colInfos, cols, colIdxsByName, index, true)
 }
 
 // IndexInfo2Cols gets the corresponding []*Column of the indexInfo's []*IndexColumn,
 // together with a []int containing their lengths.
 // If this index has three IndexColumn that the 1st and 3rd IndexColumn has corresponding *Column,
 // the return value will be [col1, nil, col2].
-func IndexInfo2Cols(colInfos []*model.ColumnInfo, cols []*Column, index *model.IndexInfo) ([]*Column, []int) {
-	return indexInfo2ColsImpl(colInfos, cols, index, false)
+func IndexInfo2Cols(colInfos []*model.ColumnInfo, cols []*Column, colIdxsByName map[string]int, index *model.IndexInfo) ([]*Column, []int) {
+	return indexInfo2ColsImpl(colInfos, cols, colIdxsByName, index, false)
 }
 
 // FindPrefixOfIndex will find columns in index by checking the unique id.

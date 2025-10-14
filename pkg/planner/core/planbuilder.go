@@ -1661,7 +1661,7 @@ func (b *PlanBuilder) buildPhysicalIndexLookUpReader(_ context.Context, dbName a
 	idxColInfos := getIndexColumnInfos(tblInfo, idx)
 	colIdxsByName := model.GetColIdxsByName(idxColInfos)
 	idxColSchema := getIndexColsSchema(tblInfo, idx, fullExprCols)
-	idxCols, idxColLens := expression.IndexInfo2PrefixCols(idxColInfos, idxColSchema.Columns, idx)
+	idxCols, idxColLens := expression.IndexInfo2PrefixCols(idxColInfos, idxColSchema.Columns, colIdxsByName, idx)
 	pseudoHistColl := statistics.PseudoHistColl(physicalID, false)
 	is := physicalop.PhysicalIndexScan{
 		Table:            tblInfo,
@@ -1795,7 +1795,8 @@ func tryGetCommonHandleCols(t table.Table, allColSchema *expression.Schema) ([]*
 		return nil, nil, false
 	}
 	pk := tables.FindPrimaryIndex(tblInfo)
-	commonHandleCols, _ := expression.IndexInfo2Cols(tblInfo.Columns, allColSchema.Columns, pk)
+	colIdxsByName := model.GetColIdxsByName(tblInfo.Columns)
+	commonHandleCols, _ := expression.IndexInfo2Cols(tblInfo.Columns, allColSchema.Columns, colIdxsByName, pk)
 	commonHandelColInfos := tables.TryGetCommonPkColumns(t)
 	return commonHandelColInfos, commonHandleCols, true
 }
