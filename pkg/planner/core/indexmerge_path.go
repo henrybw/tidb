@@ -983,11 +983,12 @@ func PrepareIdxColsAndUnwrapArrayType(
 	tblColsByID map[int64]*expression.Column,
 	checkOnly1ArrayTypeCol bool,
 ) (idxCols []*expression.Column, ok bool) {
+	colInfos := tableInfo.Cols()
 	idxCols = make([]*expression.Column, 0, len(idxInfo.Columns))
 	var virColNum = 0
 	for i := range idxInfo.Columns {
 		colOffset := idxInfo.Columns[i].Offset
-		colMeta := tableInfo.Cols()[colOffset]
+		colMeta := colInfos[colOffset]
 		col, found := tblColsByID[colMeta.ID]
 		if !found { // unexpected, no vir-col on this MVIndex
 			return nil, false
