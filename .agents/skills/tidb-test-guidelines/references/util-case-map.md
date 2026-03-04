@@ -530,21 +530,6 @@
 - `pkg/util/stmtsummary/main_test.go` - Configures default goleak settings and registers testdata.
 - `pkg/util/stmtsummary/statement_summary_test.go` - util/stmtsummary: Tests set up.
 
-## pkg/util/stmtsummary/v2
-
-### Tests
-- `pkg/util/stmtsummary/v2/column_test.go` - util/stmtsummary/v2: Tests column.
-- `pkg/util/stmtsummary/v2/main_test.go` - Configures default goleak settings and registers testdata.
-- `pkg/util/stmtsummary/v2/reader_test.go` - util/stmtsummary/v2: Tests time range overlap.
-- `pkg/util/stmtsummary/v2/record_test.go` - util/stmtsummary/v2: Tests stmt record.
-- `pkg/util/stmtsummary/v2/stmtsummary_benchmark_test.go` - util/stmtsummary/v2: Tests stmt summary add single workload.
-- `pkg/util/stmtsummary/v2/stmtsummary_test.go` - util/stmtsummary/v2: Tests stmt window.
-
-## pkg/util/stmtsummary/v2/tests
-
-### Tests
-- `pkg/util/stmtsummary/v2/tests/main_test.go` - Configures default goleak settings and registers testdata.
-- `pkg/util/stmtsummary/v2/tests/table_test.go` - util/stmtsummary/v2/tests: Tests stmt summary index advisor.
 
 ## pkg/util/stringutil
 

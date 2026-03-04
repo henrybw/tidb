@@ -54,7 +54,6 @@ go_library(
         "//pkg/util/sem",
         "//pkg/util/sem/v2:sem",
         "//pkg/util/signal",
-        "//pkg/util/stmtsummary/v2:stmtsummary",
         "//pkg/util/sys/linux",
         "//pkg/util/sys/storage",
         "//pkg/util/systimemon",

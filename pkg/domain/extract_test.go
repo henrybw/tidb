@@ -16,17 +16,14 @@ package domain_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/pingcap/tidb/pkg/config"
 	"github.com/pingcap/tidb/pkg/domain"
 	"github.com/pingcap/tidb/pkg/kv"
 	"github.com/pingcap/tidb/pkg/parser/auth"
 	"github.com/pingcap/tidb/pkg/planner/extstore"
 	"github.com/pingcap/tidb/pkg/testkit"
-	stmtsummaryv2 "github.com/pingcap/tidb/pkg/util/stmtsummary/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,27 +46,6 @@ func TestExtractPlanWithoutHistoryView(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExtractWithoutStmtSummaryPersistedEnabled(t *testing.T) {
-	tempDir := t.TempDir()
-	ctx := context.Background()
-	storage, err := extstore.NewExtStorage(ctx, "file://"+tempDir, "")
-	require.NoError(t, err)
-	extstore.SetGlobalExtStorageForTest(storage)
-	defer func() {
-		extstore.SetGlobalExtStorageForTest(nil)
-		storage.Close()
-	}()
-
-	setupStmtSummary()
-	closeStmtSummary()
-	_, dom := testkit.CreateMockStoreAndDomain(t)
-	extractHandler := dom.GetExtractHandle()
-	task := domain.NewExtractPlanTask(time.Now(), time.Now())
-	task.UseHistoryView = true
-	_, err = extractHandler.ExtractTask(ctx, task)
-	require.Error(t, err)
-}
-
 func TestExtractHandlePlanTask(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := context.Background()
@@ -80,9 +56,6 @@ func TestExtractHandlePlanTask(t *testing.T) {
 		extstore.SetGlobalExtStorageForTest(nil)
 		storage.Close()
 	}()
-
-	setupStmtSummary()
-	defer closeStmtSummary()
 
 	store, dom := testkit.CreateMockStoreAndDomain(t)
 	tk := newTestKitWithRoot(t, store)
@@ -108,23 +81,6 @@ func TestExtractHandlePlanTask(t *testing.T) {
 	name, err := extractHandler.ExtractTask(context.Background(), task)
 	require.NoError(t, err)
 	require.True(t, len(name) > 0)
-}
-
-func setupStmtSummary() {
-	stmtsummaryv2.Setup(&stmtsummaryv2.Config{
-		Filename: "tidb-statements.log",
-	})
-	config.UpdateGlobal(func(conf *config.Config) {
-		conf.Instance.StmtSummaryEnablePersistent = true
-	})
-}
-
-func closeStmtSummary() {
-	config.UpdateGlobal(func(conf *config.Config) {
-		conf.Instance.StmtSummaryEnablePersistent = false
-	})
-	stmtsummaryv2.GlobalStmtSummary.Close()
-	_ = os.Remove(config.GetGlobalConfig().Instance.StmtSummaryFilename)
 }
 
 func newTestKit(t *testing.T, store kv.Storage) *testkit.TestKit {

@@ -30,7 +30,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/pingcap/errors"
-	"github.com/pingcap/tidb/pkg/config"
 	"github.com/pingcap/tidb/pkg/kv"
 	"github.com/pingcap/tidb/pkg/meta/metadef"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -145,9 +144,6 @@ func (w *extractWorker) extractTask(ctx context.Context, task *ExtractTask) (str
 }
 
 func (w *extractWorker) extractPlanTask(ctx context.Context, task *ExtractTask) (string, error) {
-	if task.UseHistoryView && !config.GetGlobalConfig().Instance.StmtSummaryEnablePersistent {
-		return "", errors.New("tidb_stmt_summary_enable_persistent should be enabled for extract task")
-	}
 	records, err := w.collectRecords(ctx, task)
 	if err != nil {
 		logutil.BgLogger().Error("collect stmt summary records failed for extract plan task", zap.Error(err))

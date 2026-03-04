@@ -79,7 +79,6 @@ import (
 	"github.com/pingcap/tidb/pkg/util/sem"
 	semv2 "github.com/pingcap/tidb/pkg/util/sem/v2"
 	"github.com/pingcap/tidb/pkg/util/signal"
-	stmtsummaryv2 "github.com/pingcap/tidb/pkg/util/stmtsummary/v2"
 	"github.com/pingcap/tidb/pkg/util/sys/linux"
 	storageSys "github.com/pingcap/tidb/pkg/util/sys/storage"
 	"github.com/pingcap/tidb/pkg/util/systimemon"
@@ -344,7 +343,6 @@ func main() {
 	terror.MustNil(err)
 	_, err = setupExtensions()
 	terror.MustNil(err)
-	setupStmtSummary()
 
 	err = cpuprofile.StartCPUProfiler()
 	terror.MustNil(err)
@@ -1070,7 +1068,6 @@ func cleanup(svr *server.Server, storage kv.Storage, dom *domain.Domain) {
 	repository.StopRepository()
 	closeDDLOwnerMgrDomainAndStorage(storage, dom)
 	disk.CleanUp()
-	closeStmtSummary()
 	topsql.Close()
 	cgmon.StopCgroupMonitor()
 }
@@ -1085,28 +1082,6 @@ func stringToList(repairString string) []string {
 	return strings.FieldsFunc(repairString, func(r rune) bool {
 		return r == ',' || r == ' ' || r == '"'
 	})
-}
-
-func setupStmtSummary() {
-	instanceCfg := config.GetGlobalConfig().Instance
-	if instanceCfg.StmtSummaryEnablePersistent {
-		err := stmtsummaryv2.Setup(&stmtsummaryv2.Config{
-			Filename:       instanceCfg.StmtSummaryFilename,
-			FileMaxSize:    instanceCfg.StmtSummaryFileMaxSize,
-			FileMaxDays:    instanceCfg.StmtSummaryFileMaxDays,
-			FileMaxBackups: instanceCfg.StmtSummaryFileMaxBackups,
-		})
-		if err != nil {
-			logutil.BgLogger().Error("failed to setup statements summary", zap.Error(err))
-		}
-	}
-}
-
-func closeStmtSummary() {
-	instanceCfg := config.GetGlobalConfig().Instance
-	if instanceCfg.StmtSummaryEnablePersistent {
-		stmtsummaryv2.Close()
-	}
 }
 
 func enablePyroscope() {

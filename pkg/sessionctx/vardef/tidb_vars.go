@@ -1244,16 +1244,6 @@ const (
 	// TiDBResourceControlStrictMode indicates whether resource control strict mode is enabled.
 	// When strict mode is enabled, user need certain privilege to change session or statement resource group.
 	TiDBResourceControlStrictMode = "tidb_resource_control_strict_mode"
-	// TiDBStmtSummaryEnablePersistent indicates whether to enable file persistence for stmtsummary.
-	TiDBStmtSummaryEnablePersistent = "tidb_stmt_summary_enable_persistent"
-	// TiDBStmtSummaryFilename indicates the file name written by stmtsummary.
-	TiDBStmtSummaryFilename = "tidb_stmt_summary_filename"
-	// TiDBStmtSummaryFileMaxDays indicates how many days the files written by stmtsummary will be kept.
-	TiDBStmtSummaryFileMaxDays = "tidb_stmt_summary_file_max_days"
-	// TiDBStmtSummaryFileMaxSize indicates the maximum size (in mb) of a single file written by stmtsummary.
-	TiDBStmtSummaryFileMaxSize = "tidb_stmt_summary_file_max_size"
-	// TiDBStmtSummaryFileMaxBackups indicates the maximum number of files written by stmtsummary.
-	TiDBStmtSummaryFileMaxBackups = "tidb_stmt_summary_file_max_backups"
 	// TiDBTTLRunningTasks limits the count of running ttl tasks. Default to 0, means 3 times the count of TiKV (or no
 	// limitation, if the storage is not TiKV).
 	TiDBTTLRunningTasks = "tidb_ttl_running_tasks"

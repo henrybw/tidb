@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pingcap/tidb/pkg/config"
 	"github.com/pingcap/tidb/pkg/domain"
 	"github.com/pingcap/tidb/pkg/kv"
 	server2 "github.com/pingcap/tidb/pkg/server"
@@ -36,22 +35,15 @@ import (
 	"github.com/pingcap/tidb/pkg/testkit"
 	"github.com/pingcap/tidb/pkg/testkit/testfailpoint"
 	"github.com/pingcap/tidb/pkg/types"
-	stmtsummaryv2 "github.com/pingcap/tidb/pkg/util/stmtsummary/v2"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExtractHandler(t *testing.T) {
-	setupStmtSummary()
-	defer closeStmtSummary()
-
 	store := testkit.CreateMockStore(t)
 	testExtractHandler(t, store)
 }
 
 func TestExtractHandlerInfoSchemaV2(t *testing.T) {
-	setupStmtSummary()
-	defer closeStmtSummary()
-
 	store := testkit.CreateMockStore(t)
 	tk := testkit.NewTestKit(t, store)
 	tk.MustExec("set @@global.tidb_schema_cache_size = 600*1024*1024")
@@ -123,22 +115,4 @@ func prepareData4ExtractPlanTask(t *testing.T, client *testserverclient.TestServ
 	tk.MustExec("use test")
 	tk.MustExec("create table t(id int)")
 	tk.MustExec("select * from t")
-}
-
-func setupStmtSummary() {
-	stmtsummaryv2.Setup(&stmtsummaryv2.Config{
-		Filename: "tidb-statements.log",
-	})
-	config.UpdateGlobal(func(conf *config.Config) {
-		conf.Instance.StmtSummaryEnablePersistent = true
-	})
-}
-
-func closeStmtSummary() {
-	config.UpdateGlobal(func(conf *config.Config) {
-		conf.Instance.StmtSummaryEnablePersistent = false
-	})
-	stmtsummaryv2.GlobalStmtSummary.Close()
-	stmtsummaryv2.GlobalStmtSummary = nil
-	_ = os.Remove(config.GetGlobalConfig().Instance.StmtSummaryFilename)
 }
